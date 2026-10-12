@@ -28,7 +28,10 @@ export class TikTokProvider implements ProviderAdapter {
       clearTimeout(timeout);
 
       if (!res.ok) {
-        throw new Error(`TikTok oEmbed returned HTTP ${res.status}`);
+        if (res.status === 400 || res.status === 404) {
+          throw new Error('This TikTok video could not be loaded. The video may be private, expired, or deleted by its author.');
+        }
+        throw new Error(`TikTok server returned HTTP ${res.status}`);
       }
 
       const data = await res.json() as {

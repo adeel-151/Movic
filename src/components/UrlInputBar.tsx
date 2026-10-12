@@ -51,20 +51,20 @@ export const UrlInputBar: React.FC<UrlInputBarProps> = ({ onInspect, isLoading }
 
   const sampleLinks = [
     {
-      label: 'Big Buck Bunny (Direct 1080p MP4)',
-      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+      label: 'Zencoder Oceans (Direct MP4 - 23MB)',
+      url: 'https://vjs.zencdn.net/v/oceans.mp4',
     },
     {
-      label: 'Tears of Steel (Direct 720p MP4)',
-      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+      label: 'Big Buck Bunny (Direct MP4)',
+      url: 'https://www.w3schools.com/html/mov_bbb.mp4',
+    },
+    {
+      label: 'MDN Flower (Direct CC0 MP4)',
+      url: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
     },
     {
       label: 'YouTube (Sample Video)',
       url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
-    },
-    {
-      label: 'TikTok (Sample Link)',
-      url: 'https://www.tiktok.com/@tiktok/video/7106594312292453678',
     },
   ];
 

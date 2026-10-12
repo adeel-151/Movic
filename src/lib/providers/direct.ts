@@ -25,22 +25,50 @@ export class DirectMediaProvider implements ProviderAdapter {
     const timeout = setTimeout(() => controller.abort(), options.timeoutMs);
 
     try {
-      const response = await fetch(parsedUrl.toString(), {
+      const standardHeaders = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+      };
+
+      let response = await fetch(parsedUrl.toString(), {
         method: 'HEAD',
         signal: controller.signal,
-        headers: {
-          'User-Agent': 'PersonalDownloader/1.0',
-        },
+        headers: standardHeaders,
       });
+
+      // Some CDNs reject HEAD requests; fallback to Range GET
+      if (response.status === 403 || response.status === 405 || response.status === 501) {
+        response = await fetch(parsedUrl.toString(), {
+          method: 'GET',
+          signal: controller.signal,
+          headers: { ...standardHeaders, 'Range': 'bytes=0-1024' },
+        });
+      }
 
       clearTimeout(timeout);
 
       if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error(`Media server rejected request (HTTP 403 Forbidden). The file may require authentication or permissions.`);
+        }
+        if (response.status === 404) {
+          throw new Error(`Media file not found on remote server (HTTP 404). Please verify the link.`);
+        }
         throw new Error(`Media server responded with status HTTP ${response.status} ${response.statusText}`);
       }
 
       const contentType = response.headers.get('content-type') || 'video/mp4';
-      const contentLength = response.headers.get('content-length');
+      const contentRange = response.headers.get('content-range');
+      let contentLength = response.headers.get('content-length');
+
+      // If response was Range GET, extract total length from Content-Range (e.g. bytes 0-1024/788493)
+      if (contentRange && contentRange.includes('/')) {
+        const total = contentRange.split('/')[1];
+        if (total && total !== '*') {
+          contentLength = total;
+        }
+      }
+
       const estimatedBytes = contentLength ? parseInt(contentLength, 10) : undefined;
 
       // Extract filename from URL

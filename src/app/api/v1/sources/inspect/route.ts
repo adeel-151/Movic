@@ -65,10 +65,10 @@ export async function POST(req: NextRequest) {
       {
         code: 'SOURCE_UNAVAILABLE',
         message,
-        retryable: true,
+        retryable: false,
         requestId,
       },
-      { status: 502 }
+      { status: 422 }
     );
   }
 }
