@@ -1,4 +1,4 @@
-import { MEDIA_DIR } from '../config';
+import { MEDIA_DIR, ensureStorageDirs } from '../config';
 import {
   getJob,
   getVariantsForJob,
@@ -9,7 +9,7 @@ import {
   listJobs,
 } from '../db';
 import { providerRegistry } from '../providers/registry';
-import { DownloadJob, ErrorCode } from '../types';
+import { DownloadJob, ErrorCode, AppSettings } from '../types';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -27,28 +27,31 @@ class JobWorkerEngine {
     this.startRetentionTimer();
   }
 
-  private recoverStaleJobs(): void {
+  private async recoverStaleJobs(): Promise<void> {
     try {
-      const recentJobs = listJobs(100);
+      const recentJobs = await listJobs(100);
       for (const job of recentJobs) {
         if (job.status === 'preparing' || job.status === 'inspecting') {
-          updateJobStatus(job.id, 'failed', {
+          await updateJobStatus(job.id, 'failed', {
             errorCode: 'INTERNAL_ERROR',
             errorMessage: 'Job interrupted due to application restart.',
           });
         }
       }
-      cleanupExpiredArtifacts();
+      await cleanupExpiredArtifacts();
     } catch {
-      // ignore on startup before db initialized
+      // ignore on startup before db/network initialized
     }
   }
 
   private startRetentionTimer(): void {
+    // Only run interval timer in long-lived Node processes, skip if in serverless lambda
+    if (process.env.VERCEL) return;
+
     if (!this.cleanupInterval) {
-      this.cleanupInterval = setInterval(() => {
+      this.cleanupInterval = setInterval(async () => {
         try {
-          cleanupExpiredArtifacts();
+          await cleanupExpiredArtifacts();
         } catch {
           // ignore
         }
@@ -56,11 +59,11 @@ class JobWorkerEngine {
     }
   }
 
-  public cancel(jobId: string): boolean {
+  public async cancel(jobId: string): Promise<boolean> {
     this.cancelledJobs.add(jobId);
-    const job = getJob(jobId);
+    const job = await getJob(jobId);
     if (job && (job.status === 'queued' || job.status === 'preparing' || job.status === 'inspecting')) {
-      updateJobStatus(jobId, 'cancelled', {
+      await updateJobStatus(jobId, 'cancelled', {
         errorMessage: 'Job was cancelled by the user.',
       });
       return true;
@@ -77,38 +80,40 @@ class JobWorkerEngine {
 
     this.isProcessing = true;
     try {
-      const settings = getAppSettings();
-      const maxConcurrent = settings.maxConcurrentJobs;
+      const settings = await getAppSettings();
+      const maxConcurrent = settings.maxConcurrentJobs || 1;
 
       while (this.activeJobs.size < maxConcurrent) {
         // Find next queued job
-        const allJobs = listJobs(50);
-        const nextJob = allJobs.reverse().find(j => j.status === 'queued');
+        const allJobs = await listJobs(50);
+        const nextJob = allJobs.reverse().find((j) => j.status === 'queued');
 
         if (!nextJob) break;
 
         this.processJobAsync(nextJob, settings);
       }
+    } catch (e: unknown) {
+      console.warn('[worker] Queue trigger note:', e instanceof Error ? e.message : String(e));
     } finally {
       this.isProcessing = false;
     }
   }
 
-  private async processJobAsync(job: DownloadJob, settings: ReturnType<typeof getAppSettings>): Promise<void> {
+  private async processJobAsync(job: DownloadJob, settings: AppSettings): Promise<void> {
     this.activeJobs.add(job.id);
-    updateJobStatus(job.id, 'preparing', { progressPercent: 0 });
+    await updateJobStatus(job.id, 'preparing', { progressPercent: 0 });
 
     try {
       if (this.isCancelled(job.id)) {
-        updateJobStatus(job.id, 'cancelled', { errorMessage: 'Cancelled prior to download start.' });
+        await updateJobStatus(job.id, 'cancelled', { errorMessage: 'Cancelled prior to download start.' });
         return;
       }
 
-      const variants = getVariantsForJob(job.id);
-      const selectedVariant = variants.find(v => v.id === job.selectedVariantId) || variants[0];
+      const variants = await getVariantsForJob(job.id);
+      const selectedVariant = variants.find((v) => v.id === job.selectedVariantId) || variants[0];
 
       if (!selectedVariant) {
-        updateJobStatus(job.id, 'failed', {
+        await updateJobStatus(job.id, 'failed', {
           errorCode: 'VARIANT_UNAVAILABLE',
           errorMessage: 'Selected media variant was not found or is no longer available.',
         });
@@ -117,35 +122,38 @@ class JobWorkerEngine {
 
       const adapter = providerRegistry.getAdapter(job.provider);
       if (!adapter) {
-        updateJobStatus(job.id, 'failed', {
+        await updateJobStatus(job.id, 'failed', {
           errorCode: 'PROVIDER_UNSUPPORTED',
           errorMessage: `Provider '${job.provider}' is not available or disabled.`,
         });
         return;
       }
 
-      const timeoutMs = settings.jobTimeoutSeconds * 1000;
-      const maxBytes = settings.maxOutputBytes;
+      // Ensure storage directory exists before downloading
+      ensureStorageDirs();
+
+      const timeoutMs = (settings.jobTimeoutSeconds || 900) * 1000;
+      const maxBytes = settings.maxOutputBytes || 1073741824;
 
       const artifact = await adapter.prepareDownload(selectedVariant, {
         jobId: job.id,
         outputDir: MEDIA_DIR,
         maxBytes,
         timeoutMs,
-        onProgress: (percent) => {
-          updateJobStatus(job.id, 'preparing', { progressPercent: percent });
+        onProgress: async (percent) => {
+          await updateJobStatus(job.id, 'preparing', { progressPercent: percent });
         },
         checkCancelled: () => this.isCancelled(job.id),
       });
 
       // Calculate expiry timestamp based on configured retention
-      const retentionMs = settings.outputRetentionMinutes * 60 * 1000;
+      const retentionMs = (settings.outputRetentionMinutes || 60) * 60 * 1000;
       const expiresAt = Date.now() + retentionMs;
       artifact.expiresAt = expiresAt;
 
-      saveArtifact(artifact);
+      await saveArtifact(artifact);
 
-      updateJobStatus(job.id, 'completed', {
+      await updateJobStatus(job.id, 'completed', {
         progressPercent: 100,
         expiresAt,
       });
@@ -154,12 +162,12 @@ class JobWorkerEngine {
       const isCancellation = this.isCancelled(job.id) || errorMsg.includes('cancelled');
 
       if (isCancellation) {
-        updateJobStatus(job.id, 'cancelled', { errorMessage: 'Job was cancelled.' });
+        await updateJobStatus(job.id, 'cancelled', { errorMessage: 'Job was cancelled.' });
       } else {
         const adapter = providerRegistry.getAdapter(job.provider);
         const mapped = adapter ? adapter.mapError(err) : { code: 'INTERNAL_ERROR', message: errorMsg, retryable: false };
 
-        updateJobStatus(job.id, 'failed', {
+        await updateJobStatus(job.id, 'failed', {
           errorCode: mapped.code as ErrorCode,
           errorMessage: mapped.message,
         });

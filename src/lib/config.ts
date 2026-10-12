@@ -1,18 +1,34 @@
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { AppSettings } from './types';
 
-const BASE_DIR = process.cwd();
-export const STORAGE_DIR = path.join(BASE_DIR, '.storage');
+// In serverless environments (e.g., Vercel), /var/task is read-only.
+// We use os.tmpdir() to avoid EROFS (Read-only file system) crashes.
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const BASE_DIR = isServerless ? path.join(os.tmpdir(), 'movic') : process.cwd();
+
+export const STORAGE_DIR = isServerless
+  ? path.join(os.tmpdir(), 'movic', '.storage')
+  : path.join(BASE_DIR, '.storage');
+
 export const MEDIA_DIR = path.join(STORAGE_DIR, 'media_artifacts');
 export const DB_PATH = path.join(STORAGE_DIR, 'downloader.db');
 
-// Ensure storage directories exist
-if (!fs.existsSync(STORAGE_DIR)) {
-  fs.mkdirSync(STORAGE_DIR, { recursive: true });
-}
-if (!fs.existsSync(MEDIA_DIR)) {
-  fs.mkdirSync(MEDIA_DIR, { recursive: true });
+// Lazy, safe initialization function without top-level module crash
+export function ensureStorageDirs(): void {
+  try {
+    if (!fs.existsSync(STORAGE_DIR)) {
+      fs.mkdirSync(STORAGE_DIR, { recursive: true });
+    }
+    if (!fs.existsSync(MEDIA_DIR)) {
+      fs.mkdirSync(MEDIA_DIR, { recursive: true });
+    }
+  } catch (err: unknown) {
+    // Non-fatal warning — serverless operations should not crash on disk prep
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn('[config] Storage directory setup note:', msg);
+  }
 }
 
 export const DEFAULT_CONFIG: AppSettings = {

@@ -4,7 +4,7 @@ import { YouTubeProvider } from './youtube';
 import { TikTokProvider } from './tiktok';
 import { VimeoProvider } from './vimeo';
 import { ProviderCapability } from '../types';
-import { getAppSettings } from '../db';
+import { getCachedAppSettings } from '../db';
 
 class ProviderRegistry {
   private adapters: Map<string, ProviderAdapter> = new Map();
@@ -24,9 +24,10 @@ class ProviderRegistry {
     return this.adapters.get(key);
   }
 
-  public findAdapterForUrl(url: URL): ProviderAdapter | null {
-    const settings = getAppSettings();
-    const enabledSet = new Set(settings.enabledProviders);
+  public findAdapterForUrl(url: URL, customEnabledProviders?: string[]): ProviderAdapter | null {
+    const settings = getCachedAppSettings();
+    const enabledProviders = customEnabledProviders || settings.enabledProviders || [];
+    const enabledSet = new Set(enabledProviders);
 
     // First check domain-specific adapters
     for (const adapter of this.adapters.values()) {
@@ -44,9 +45,10 @@ class ProviderRegistry {
     return null;
   }
 
-  public getAllCapabilities(): ProviderCapability[] {
-    const settings = getAppSettings();
-    const enabledSet = new Set(settings.enabledProviders);
+  public getAllCapabilities(customEnabledProviders?: string[]): ProviderCapability[] {
+    const settings = getCachedAppSettings();
+    const enabledProviders = customEnabledProviders || settings.enabledProviders || [];
+    const enabledSet = new Set(enabledProviders);
 
     const result: ProviderCapability[] = [];
     for (const adapter of this.adapters.values()) {
