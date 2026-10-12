@@ -11,6 +11,11 @@ import {
 import { providerRegistry } from '../providers/registry';
 import { DownloadJob, ErrorCode } from '../types';
 
+declare global {
+  // eslint-disable-next-line no-var
+  var __movic_worker: JobWorkerEngine | undefined;
+}
+
 class JobWorkerEngine {
   private activeJobs: Set<string> = new Set();
   private cancelledJobs: Set<string> = new Set();
@@ -168,4 +173,11 @@ class JobWorkerEngine {
   }
 }
 
-export const workerEngine = new JobWorkerEngine();
+function getWorkerEngine(): JobWorkerEngine {
+  if (!globalThis.__movic_worker) {
+    globalThis.__movic_worker = new JobWorkerEngine();
+  }
+  return globalThis.__movic_worker;
+}
+
+export const workerEngine = getWorkerEngine();

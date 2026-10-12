@@ -3,16 +3,20 @@ import fs from 'fs';
 import { DB_PATH, DEFAULT_CONFIG } from '../config';
 import { DownloadJob, MediaVariant, Artifact, JobStatus, ErrorCode, AppSettings } from '../types';
 
-let dbInstance: DatabaseSync | null = null;
+// Pin to globalThis so the singleton survives Next.js HMR worker restarts
+declare global {
+  // eslint-disable-next-line no-var
+  var __movic_db: DatabaseSync | undefined;
+}
 
 export function getDb(): DatabaseSync {
-  if (!dbInstance) {
-    dbInstance = new DatabaseSync(DB_PATH);
-    dbInstance.exec('PRAGMA journal_mode = WAL;');
-    dbInstance.exec('PRAGMA synchronous = NORMAL;');
-    initSchema(dbInstance);
+  if (!globalThis.__movic_db) {
+    globalThis.__movic_db = new DatabaseSync(DB_PATH);
+    globalThis.__movic_db.exec('PRAGMA journal_mode = WAL;');
+    globalThis.__movic_db.exec('PRAGMA synchronous = NORMAL;');
+    initSchema(globalThis.__movic_db);
   }
-  return dbInstance;
+  return globalThis.__movic_db;
 }
 
 function initSchema(db: DatabaseSync): void {
