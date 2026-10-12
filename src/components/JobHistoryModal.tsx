@@ -8,147 +8,78 @@ interface JobHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   jobs: DownloadJob[];
-  onDeleteJob: (jobId: string) => Promise<void>;
+  onDeleteJob: (id: string) => Promise<void>;
   onClearAll: () => Promise<void>;
 }
 
 export const JobHistoryModal: React.FC<JobHistoryModalProps> = ({
-  isOpen,
-  onClose,
-  jobs,
-  onDeleteJob,
-  onClearAll,
+  isOpen, onClose, jobs, onDeleteJob, onClearAll,
 }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ padding: '24px' }}>
-        {/* Header */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '20px',
-          borderBottom: '1px solid var(--border-subtle)',
-          paddingBottom: '14px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <History size={20} color="var(--accent-primary)" />
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Job History</h3>
-            <span className="badge badge-info">{jobs.length}</span>
-          </div>
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in"
+         onClick={onClose}>
+      <div className="w-full sm:max-w-lg max-h-[85vh] flex flex-col bg-surface-900 border border-white/8 rounded-3xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)] animate-slide-up"
+           onClick={(e) => e.stopPropagation()}>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/8 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <History size={18} className="text-brand-400" />
+            <h2 className="font-bold text-slate-100">Job History</h2>
+            <span className="badge-blue text-[10px]">{jobs.length}</span>
+          </div>
+          <div className="flex items-center gap-2">
             {jobs.length > 0 && (
-              <button
-                onClick={onClearAll}
-                className="btn btn-danger"
-                style={{ padding: '6px 12px', fontSize: '0.78rem' }}
-              >
-                <Trash2 size={13} /> Clear All
+              <button onClick={onClearAll} className="btn-danger text-xs px-3 py-1.5">
+                <Trash2 size={12} /> Clear All
               </button>
             )}
-            <button onClick={onClose} className="btn-icon" aria-label="Close history modal">
-              <X size={20} />
+            <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-200 rounded-xl hover:bg-white/6 transition-colors" aria-label="Close">
+              <X size={18} />
             </button>
           </div>
         </div>
 
-        {/* History List */}
-        {jobs.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
-            <p style={{ fontSize: '0.95rem' }}>No recent jobs found.</p>
-            <p style={{ fontSize: '0.8rem', marginTop: '4px' }}>
-              Completed downloads and inspections will appear here.
-            </p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {jobs.map((job) => {
-              const isCompleted = job.status === 'completed';
-              const isExpired = job.status === 'expired' || (job.expiresAt && Date.now() > job.expiresAt);
-
-              return (
-                <div
-                  key={job.id}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: '14px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '12px',
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontWeight: 600,
-                      fontSize: '0.9rem',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}>
-                      {job.safeTitle}
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
-                      <span className="badge badge-info" style={{ fontSize: '0.68rem' }}>
-                        {job.provider}
-                      </span>
-
-                      {isCompleted && !isExpired && (
-                        <span className="badge badge-success" style={{ fontSize: '0.68rem' }}>
-                          <CheckCircle2 size={11} /> Ready
-                        </span>
-                      )}
-
-                      {isExpired && (
-                        <span className="badge badge-warning" style={{ fontSize: '0.68rem' }}>
-                          <Clock size={11} /> Expired
-                        </span>
-                      )}
-
-                      {job.status === 'failed' && (
-                        <span className="badge badge-danger" style={{ fontSize: '0.68rem' }}>
-                          <AlertOctagon size={11} /> Failed
-                        </span>
-                      )}
-
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
-                        {new Date(job.createdAt).toLocaleTimeString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {isCompleted && !isExpired && (
-                      <a
-                        href={`/api/v1/download-jobs/${job.id}/file`}
-                        download
-                        className="btn-icon"
-                        title="Download file"
-                        style={{ color: 'var(--status-success)' }}
-                      >
-                        <Download size={17} />
-                      </a>
-                    )}
-                    <button
-                      onClick={() => onDeleteJob(job.id)}
-                      className="btn-icon"
-                      title="Delete record"
-                    >
-                      <Trash2 size={17} />
-                    </button>
+        {/* Body */}
+        <div className="overflow-y-auto flex-1 p-4 space-y-2">
+          {jobs.length === 0 ? (
+            <div className="py-16 text-center text-slate-500">
+              <p className="text-sm">No jobs yet.</p>
+              <p className="text-xs mt-1">Completed downloads will appear here.</p>
+            </div>
+          ) : jobs.map((job) => {
+            const isReady = job.status === 'completed' && (!job.expiresAt || Date.now() < job.expiresAt);
+            return (
+              <div key={job.id}
+                   className="flex items-center gap-3 p-3.5 rounded-xl border border-white/6 bg-white/3 hover:bg-white/5 transition-colors">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-200 truncate">{job.safeTitle}</p>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className="badge-purple text-[10px]">{job.provider}</span>
+                    {isReady && <span className="badge-green text-[10px]"><CheckCircle2 size={9} /> Ready</span>}
+                    {job.status === 'expired' && <span className="badge-amber text-[10px]"><Clock size={9} /> Expired</span>}
+                    {job.status === 'failed' && <span className="badge-red text-[10px]"><AlertOctagon size={9} /> Failed</span>}
+                    <span className="text-[11px] text-slate-600">{new Date(job.createdAt).toLocaleTimeString()}</span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <div className="flex items-center gap-1 shrink-0">
+                  {isReady && (
+                    <a href={`/api/v1/download-jobs/${job.id}/file`} download
+                       className="p-2 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors" title="Download">
+                      <Download size={16} />
+                    </a>
+                  )}
+                  <button onClick={() => onDeleteJob(job.id)}
+                          className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Delete">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

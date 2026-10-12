@@ -8,152 +8,84 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   settings: AppSettings | null;
-  onSaveSettings: (newSettings: Partial<AppSettings>) => Promise<void>;
+  onSaveSettings: (s: Partial<AppSettings>) => Promise<void>;
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({
-  isOpen,
-  onClose,
-  settings,
-  onSaveSettings,
-}) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSaveSettings }) => {
   const [retention, setRetention] = useState(60);
-  const [maxBytesMB, setMaxBytesMB] = useState(1024);
-  const [isSaving, setIsSaving] = useState(false);
-  const [savedSuccess, setSavedSuccess] = useState(false);
+  const [maxMB, setMaxMB] = useState(1024);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (settings) {
       setRetention(settings.outputRetentionMinutes);
-      setMaxBytesMB(Math.round(settings.maxOutputBytes / (1024 * 1024)));
+      setMaxMB(Math.round(settings.maxOutputBytes / (1024 * 1024)));
     }
   }, [settings]);
 
   if (!isOpen || !settings) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaving(true);
-    try {
-      await onSaveSettings({
-        outputRetentionMinutes: retention,
-        maxOutputBytes: maxBytesMB * 1024 * 1024,
-      });
-      setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 2000);
-    } finally {
-      setIsSaving(false);
-    }
+    setSaving(true);
+    await onSaveSettings({ outputRetentionMinutes: retention, maxOutputBytes: maxMB * 1024 * 1024 });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
+  const Row = ({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) => (
+    <div>
+      <label className="block text-sm font-semibold text-slate-200 mb-1.5">{label}</label>
+      {children}
+      <p className="text-xs text-slate-500 mt-1.5">{hint}</p>
+    </div>
+  );
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ padding: '24px' }}>
-        {/* Header */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '20px',
-          borderBottom: '1px solid var(--border-subtle)',
-          paddingBottom: '14px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Sliders size={20} color="var(--accent-primary)" />
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Application Settings</h3>
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in"
+         onClick={onClose}>
+      <div className="w-full sm:max-w-md flex flex-col bg-surface-900 border border-white/8 rounded-3xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)] animate-slide-up"
+           onClick={(e) => e.stopPropagation()}>
+
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/8">
+          <div className="flex items-center gap-2.5">
+            <Sliders size={18} className="text-brand-400" />
+            <h2 className="font-bold text-slate-100">Settings</h2>
           </div>
-          <button onClick={onClose} className="btn-icon" aria-label="Close settings modal">
-            <X size={20} />
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-200 rounded-xl hover:bg-white/6 transition-colors">
+            <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            {/* Retention */}
-            <div>
-              <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, marginBottom: '6px' }}>
-                Output File Retention (Minutes)
-              </label>
-              <input
-                type="number"
-                min={5}
-                max={1440}
-                value={retention}
-                onChange={(e) => setRetention(parseInt(e.target.value, 10) || 60)}
-                style={{
-                  width: '100%',
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '10px 14px',
-                  color: 'var(--text-main)',
-                  fontSize: '0.92rem',
-                }}
-              />
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                Temporary media artifacts will be automatically deleted after this time window.
-              </span>
-            </div>
+        <form onSubmit={handleSave} className="p-6 space-y-5">
+          <Row label="File Retention (minutes)"
+               hint="Saved files are auto-deleted after this window.">
+            <input type="number" min={5} max={1440} value={retention}
+                   onChange={(e) => setRetention(+e.target.value || 60)}
+                   className="input-field w-full" />
+          </Row>
 
-            {/* Max Output Bytes */}
-            <div>
-              <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, marginBottom: '6px' }}>
-                Max Allowed File Size (MB)
-              </label>
-              <input
-                type="number"
-                min={10}
-                max={5120}
-                value={maxBytesMB}
-                onChange={(e) => setMaxBytesMB(parseInt(e.target.value, 10) || 1024)}
-                style={{
-                  width: '100%',
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '10px 14px',
-                  color: 'var(--text-main)',
-                  fontSize: '0.92rem',
-                }}
-              />
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                Enforces resource control to prevent memory and disk exhaustion.
-              </span>
-            </div>
+          <Row label="Max File Size (MB)"
+               hint="Downloads exceeding this limit are rejected.">
+            <input type="number" min={10} max={5120} value={maxMB}
+                   onChange={(e) => setMaxMB(+e.target.value || 1024)}
+                   className="input-field w-full" />
+          </Row>
 
-            {/* Readonly Architecture Params */}
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.02)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-md)',
-              padding: '14px',
-              fontSize: '0.82rem',
-              color: 'var(--text-muted)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '6px',
-            }}>
-              <div><strong>Network Binding:</strong> {settings.appBindHost} (Localhost default)</div>
-              <div><strong>Max Concurrent Jobs:</strong> {settings.maxConcurrentJobs} (Single-user safety)</div>
-              <div><strong>Worker Execution Timeout:</strong> {settings.jobTimeoutSeconds}s</div>
-            </div>
+          {/* Read-only info */}
+          <div className="p-4 rounded-xl bg-white/3 border border-white/6 text-xs text-slate-500 space-y-1.5 font-mono">
+            <div><span className="text-slate-400">Binding:</span> {settings.appBindHost}</div>
+            <div><span className="text-slate-400">Concurrency:</span> {settings.maxConcurrentJobs} job(s)</div>
+            <div><span className="text-slate-400">Job Timeout:</span> {settings.jobTimeoutSeconds}s</div>
+          </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-              <button type="button" onClick={onClose} className="btn btn-secondary">
-                Cancel
-              </button>
-              <button type="submit" disabled={isSaving} className="btn btn-primary">
-                {savedSuccess ? (
-                  <>
-                    <Check size={16} /> Saved!
-                  </>
-                ) : (
-                  <>
-                    <Save size={16} /> Save Settings
-                  </>
-                )}
-              </button>
-            </div>
+          <div className="flex justify-end gap-3 pt-1">
+            <button type="button" onClick={onClose} className="btn-ghost text-slate-400">Cancel</button>
+            <button type="submit" disabled={saving} className="btn-brand text-sm px-5 py-2.5">
+              {saved ? <><Check size={15} /> Saved!</> : <><Save size={15} /> Save Settings</>}
+            </button>
           </div>
         </form>
       </div>

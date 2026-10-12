@@ -3,195 +3,108 @@
 import React from 'react';
 import { DownloadJob } from '@/lib/types';
 import {
-  Download,
-  AlertOctagon,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  Loader2,
-  FileCheck,
-  Ban,
-  Calendar,
+  Download, AlertOctagon, Clock, CheckCircle2,
+  XCircle, Loader2, FileCheck, Ban, Calendar,
 } from 'lucide-react';
 
 interface JobMonitorProps {
   job: DownloadJob;
-  onCancelJob: (jobId: string) => Promise<void>;
+  onCancelJob: (id: string) => Promise<void>;
   onClearActiveJob: () => void;
 }
 
-export const JobMonitor: React.FC<JobMonitorProps> = ({
-  job,
-  onCancelJob,
-  onClearActiveJob,
-}) => {
-  const getStatusBadge = () => {
-    switch (job.status) {
-      case 'completed':
-        return (
-          <span className="badge badge-success">
-            <CheckCircle2 size={13} /> Completed
-          </span>
-        );
-      case 'preparing':
-        return (
-          <span className="badge badge-info">
-            <Loader2 size={13} className="animate-spin" /> Preparing ({Math.round(job.progressPercent)}%)
-          </span>
-        );
-      case 'queued':
-        return (
-          <span className="badge badge-warning">
-            <Clock size={13} /> Queued
-          </span>
-        );
-      case 'failed':
-        return (
-          <span className="badge badge-danger">
-            <AlertOctagon size={13} /> Failed
-          </span>
-        );
-      case 'cancelled':
-        return (
-          <span className="badge badge-danger">
-            <XCircle size={13} /> Cancelled
-          </span>
-        );
-      default:
-        return <span className="badge badge-info">{job.status}</span>;
-    }
-  };
+function timeLeft(expiresAt?: number) {
+  if (!expiresAt) return '';
+  const d = expiresAt - Date.now();
+  if (d <= 0) return 'Expired';
+  return `Expires in ${Math.floor(d / 60000)} min`;
+}
 
-  const getExpiryString = (expiresAt?: number): string => {
-    if (!expiresAt) return '';
-    const diff = expiresAt - Date.now();
-    if (diff <= 0) return 'Expired';
-    const mins = Math.floor(diff / (60 * 1000));
-    return `Auto-expires in ${mins} mins`;
-  };
+function StatusBadge({ status, progress }: { status: string; progress: number }) {
+  switch (status) {
+    case 'completed': return <span className="badge-green"><CheckCircle2 size={12} /> Completed</span>;
+    case 'preparing': return <span className="badge-blue"><Loader2 size={12} className="animate-spin" /> Downloading {Math.round(progress)}%</span>;
+    case 'queued':    return <span className="badge-amber"><Clock size={12} /> Queued</span>;
+    case 'failed':    return <span className="badge-red"><AlertOctagon size={12} /> Failed</span>;
+    case 'cancelled': return <span className="badge-red"><XCircle size={12} /> Cancelled</span>;
+    default:          return <span className="badge-blue">{status}</span>;
+  }
+}
 
+export const JobMonitor: React.FC<JobMonitorProps> = ({ job, onCancelJob, onClearActiveJob }) => {
   const isCancellable = job.status === 'queued' || job.status === 'preparing';
+  const isComplete = job.status === 'completed';
+  const isFailed = job.status === 'failed';
 
   return (
-    <div className="glass-panel" style={{
-      padding: '24px',
-      marginBottom: '32px',
-      border: job.status === 'completed' ? '1px solid rgba(16, 185, 129, 0.4)' : undefined,
-      boxShadow: job.status === 'completed' ? 'var(--shadow-glow-emerald)' : undefined,
-    }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '12px',
-        marginBottom: '16px',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <FileCheck size={20} color="var(--accent-primary)" />
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>
-            Active Job Status: <span className="font-mono" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{job.id}</span>
-          </h3>
+    <div className={`glass-dark shadow-card mb-8 overflow-hidden animate-slide-up ${
+      isComplete ? 'border-emerald-500/40 shadow-glow-emerald' : ''
+    }`}>
+      <div className="px-6 py-4 border-b border-white/6 flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-2.5">
+          <FileCheck size={18} className="text-brand-400" />
+          <span className="font-semibold text-slate-200 text-sm">Active Job</span>
+          <code className="text-xs text-slate-500 font-mono">{job.id}</code>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {getStatusBadge()}
-          {isCancellable && (
-            <button
-              onClick={() => onCancelJob(job.id)}
-              className="btn btn-danger"
-              style={{ padding: '6px 12px', fontSize: '0.78rem' }}
-            >
-              <Ban size={13} /> Cancel Job
+        <div className="flex items-center gap-2">
+          <StatusBadge status={job.status} progress={job.progressPercent} />
+          {isCancellable ? (
+            <button onClick={() => onCancelJob(job.id)} className="btn-danger text-xs px-3 py-1.5">
+              <Ban size={13} /> Cancel
             </button>
-          )}
-          {!isCancellable && (
-            <button
-              onClick={onClearActiveJob}
-              className="btn btn-secondary"
-              style={{ padding: '6px 12px', fontSize: '0.78rem' }}
-            >
+          ) : (
+            <button onClick={onClearActiveJob} className="btn-ghost text-xs px-3 py-1.5 text-slate-400">
               Dismiss
             </button>
           )}
         </div>
       </div>
 
-      {/* Title */}
-      <div style={{ fontSize: '0.98rem', fontWeight: 600, marginBottom: '14px' }}>
-        {job.safeTitle}
-      </div>
+      <div className="p-6 space-y-4">
+        <p className="font-semibold text-slate-100">{job.safeTitle}</p>
 
-      {/* Progress Bar */}
-      <div style={{
-        width: '100%',
-        height: '10px',
-        backgroundColor: 'rgba(255, 255, 255, 0.08)',
-        borderRadius: 'var(--radius-full)',
-        overflow: 'hidden',
-        position: 'relative',
-        marginBottom: '16px',
-      }}>
-        <div style={{
-          height: '100%',
-          width: `${Math.max(2, job.progressPercent)}%`,
-          background: job.status === 'failed' ? 'var(--status-danger)' : 'var(--accent-gradient)',
-          borderRadius: 'var(--radius-full)',
-          transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        }} />
-      </div>
-
-      {/* Failure Info */}
-      {job.status === 'failed' && (
-        <div style={{
-          padding: '12px 14px',
-          background: 'rgba(239, 68, 68, 0.1)',
-          border: '1px solid rgba(239, 68, 68, 0.3)',
-          borderRadius: 'var(--radius-sm)',
-          fontSize: '0.85rem',
-          color: '#fca5a5',
-          marginBottom: '16px',
-        }}>
-          <strong>Error ({job.errorCode || 'FAILED'}):</strong> {job.errorMessage || 'An error occurred during retrieval.'}
+        {/* Progress bar */}
+        <div className="progress-bar-track">
+          <div
+            className="progress-bar-fill"
+            style={{
+              width: `${Math.max(2, job.progressPercent)}%`,
+              background: isFailed ? '#ef4444' : undefined,
+            }}
+          />
         </div>
-      )}
 
-      {/* Completed State: Download CTA */}
-      {job.status === 'completed' && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px',
-          padding: '16px',
-          background: 'rgba(16, 185, 129, 0.06)',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid rgba(16, 185, 129, 0.2)',
-        }}>
-          <div>
-            <div style={{ fontWeight: 600, color: '#6ee7b7', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <CheckCircle2 size={16} /> File prepared and verified locally
-            </div>
-            {job.expiresAt && (
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Calendar size={13} /> {getExpiryString(job.expiresAt)}
-              </div>
-            )}
+        {/* Error */}
+        {isFailed && (
+          <div className="p-4 rounded-xl border border-red-500/25 bg-red-500/8 text-sm text-red-300">
+            <span className="font-semibold">Error ({job.errorCode}):</span>{' '}
+            {job.errorMessage ?? 'An error occurred during download.'}
           </div>
+        )}
 
-          <a
-            href={`/api/v1/download-jobs/${job.id}/file`}
-            download
-            className="btn btn-primary"
-            style={{ padding: '10px 22px', fontSize: '0.92rem' }}
-          >
-            <Download size={16} />
-            <span>Download Saved File</span>
-          </a>
-        </div>
-      )}
+        {/* Completed CTA */}
+        {isComplete && (
+          <div className="flex items-center justify-between flex-wrap gap-3 p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/6">
+            <div>
+              <p className="text-sm font-semibold text-emerald-300 flex items-center gap-1.5">
+                <CheckCircle2 size={15} /> File saved &amp; verified
+              </p>
+              {job.expiresAt && (
+                <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                  <Calendar size={12} /> {timeLeft(job.expiresAt)}
+                </p>
+              )}
+            </div>
+            <a
+              href={`/api/v1/download-jobs/${job.id}/file`}
+              download
+              className="btn-brand text-sm"
+            >
+              <Download size={15} /> Save to Computer
+            </a>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

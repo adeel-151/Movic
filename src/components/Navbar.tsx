@@ -11,132 +11,51 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
-  onOpenHistory,
-  onOpenCapabilities,
-  onOpenSettings,
-  historyCount,
-}) => {
-  return (
-    <header style={{
-      borderBottom: '1px solid var(--border-subtle)',
-      background: 'rgba(9, 13, 22, 0.85)',
-      backdropFilter: 'blur(16px)',
-      position: 'sticky',
-      top: 0,
-      zIndex: 50,
-      padding: '16px 0',
-    }}>
-      <div className="app-container" style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '16px',
-      }}>
-        {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '12px',
-            background: 'var(--accent-gradient)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: 'var(--shadow-glow)',
-          }}>
-            <Sparkles size={22} color="#ffffff" />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{
-                fontSize: '1.35rem',
-                fontWeight: 800,
-                letterSpacing: '-0.02em',
-                background: 'linear-gradient(180deg, #FFFFFF 0%, #CBD5E1 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}>
-                MOVIC
-              </span>
-              <span className="badge badge-info" style={{ fontSize: '0.65rem' }}>
-                SRD v1.0
-              </span>
-            </div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Personal Social Video Downloader
-            </p>
-          </div>
+  onOpenHistory, onOpenCapabilities, onOpenSettings, historyCount,
+}) => (
+  <header className="sticky top-0 z-50 border-b border-white/8 bg-surface-950/80 backdrop-blur-xl">
+    <div className="max-w-6xl mx-auto px-5 py-3 flex items-center justify-between gap-4 flex-wrap">
+
+      {/* Brand */}
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-glow"
+             style={{ background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)' }}>
+          <Sparkles size={18} className="text-white" />
         </div>
-
-        {/* Security / Status Pill */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          background: 'rgba(16, 185, 129, 0.08)',
-          border: '1px solid rgba(16, 185, 129, 0.25)',
-          padding: '6px 14px',
-          borderRadius: 'var(--radius-full)',
-        }}>
-          <span style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: 'var(--status-success)',
-            boxShadow: '0 0 8px var(--status-success)',
-          }} />
-          <ShieldCheck size={14} color="var(--status-success)" />
-          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--status-success)' }}>
-            SSRF Guard Active · Localhost Only
-          </span>
-        </div>
-
-        {/* Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button
-            onClick={onOpenCapabilities}
-            className="btn btn-secondary"
-            style={{ padding: '8px 14px', fontSize: '0.82rem' }}
-            title="View Provider Capabilities"
-          >
-            <Layers size={16} />
-            <span>Connectors</span>
-          </button>
-
-          <button
-            onClick={onOpenHistory}
-            className="btn btn-secondary"
-            style={{ padding: '8px 14px', fontSize: '0.82rem', position: 'relative' }}
-            title="Download History"
-          >
-            <History size={16} />
-            <span>History</span>
-            {historyCount > 0 && (
-              <span style={{
-                background: 'var(--accent-primary)',
-                color: '#fff',
-                borderRadius: 'var(--radius-full)',
-                padding: '1px 7px',
-                fontSize: '0.7rem',
-                fontWeight: 700,
-                marginLeft: '4px',
-              }}>
-                {historyCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={onOpenSettings}
-            className="btn btn-icon"
-            title="System Settings"
-            aria-label="Settings"
-          >
-            <Sliders size={18} />
-          </button>
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-extrabold tracking-tight text-gradient">MOVIC</span>
+            <span className="badge-blue text-[10px] px-2 py-0.5">SRD v1.0</span>
+          </div>
+          <p className="text-[11px] text-slate-500 leading-none mt-0.5">Personal Video Downloader</p>
         </div>
       </div>
-    </header>
-  );
-};
+
+      {/* SSRF status */}
+      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/8">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]" />
+        <ShieldCheck size={13} className="text-emerald-400" />
+        <span className="text-xs font-semibold text-emerald-400">SSRF Guard Active</span>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-2">
+        <button onClick={onOpenCapabilities} className="btn-ghost text-slate-300 text-xs gap-1.5">
+          <Layers size={15} /> Connectors
+        </button>
+        <button onClick={onOpenHistory} className="btn-ghost text-slate-300 text-xs gap-1.5 relative">
+          <History size={15} /> History
+          {historyCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center
+                             rounded-full bg-brand-500 text-white text-[10px] font-bold px-1">
+              {historyCount}
+            </span>
+          )}
+        </button>
+        <button onClick={onOpenSettings} className="btn-ghost p-2.5" title="Settings" aria-label="Settings">
+          <Sliders size={16} className="text-slate-400" />
+        </button>
+      </div>
+    </div>
+  </header>
+);
