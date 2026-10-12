@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ShieldCheck, History, Sliders, Layers, Sparkles } from 'lucide-react';
+import { Layers, History, Settings, Shield } from 'lucide-react';
 
 interface NavbarProps {
   onOpenHistory: () => void;
@@ -11,51 +11,66 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
-  onOpenHistory, onOpenCapabilities, onOpenSettings, historyCount,
+  onOpenHistory,
+  onOpenCapabilities,
+  onOpenSettings,
+  historyCount,
 }) => (
-  <header className="sticky top-0 z-50 border-b border-white/8 bg-surface-950/80 backdrop-blur-xl">
-    <div className="max-w-6xl mx-auto px-5 py-3 flex items-center justify-between gap-4 flex-wrap">
+  <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-surface-950/80 backdrop-blur-md">
+    <div className="max-w-4xl mx-auto px-6 h-14 flex items-center justify-between">
 
       {/* Brand */}
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-glow"
-             style={{ background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)' }}>
-          <Sparkles size={18} className="text-white" />
+      <div className="flex items-center gap-2.5">
+        <div className="w-7 h-7 rounded-lg bg-white text-zinc-950 flex items-center justify-center font-bold text-xs tracking-tighter shadow-sm">
+          M
         </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-extrabold tracking-tight text-gradient">MOVIC</span>
-            <span className="badge-blue text-[10px] px-2 py-0.5">SRD v1.0</span>
-          </div>
-          <p className="text-[11px] text-slate-500 leading-none mt-0.5">Personal Video Downloader</p>
+        <div className="flex items-baseline gap-2">
+          <span className="font-semibold text-sm tracking-tight text-zinc-100">movic</span>
+          <span className="text-[11px] font-mono text-zinc-500">v1.0</span>
         </div>
       </div>
 
-      {/* SSRF status */}
-      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/8">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]" />
-        <ShieldCheck size={13} className="text-emerald-400" />
-        <span className="text-xs font-semibold text-emerald-400">SSRF Guard Active</span>
+      {/* Center status indicator */}
+      <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/[0.06] text-[11px] text-zinc-400">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+        <span className="font-medium">SSRF Shield Active</span>
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2">
-        <button onClick={onOpenCapabilities} className="btn-ghost text-slate-300 text-xs gap-1.5">
-          <Layers size={15} /> Connectors
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={onOpenCapabilities}
+          className="btn-secondary h-8 px-2.5 text-xs text-zinc-400 hover:text-zinc-200"
+          title="Provider Connectors"
+        >
+          <Layers size={13} />
+          <span className="hidden sm:inline">Connectors</span>
         </button>
-        <button onClick={onOpenHistory} className="btn-ghost text-slate-300 text-xs gap-1.5 relative">
-          <History size={15} /> History
+
+        <button
+          onClick={onOpenHistory}
+          className="btn-secondary h-8 px-2.5 text-xs text-zinc-400 hover:text-zinc-200 relative"
+          title="Job History"
+        >
+          <History size={13} />
+          <span className="hidden sm:inline">History</span>
           {historyCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center
-                             rounded-full bg-brand-500 text-white text-[10px] font-bold px-1">
+            <span className="ml-0.5 text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
               {historyCount}
             </span>
           )}
         </button>
-        <button onClick={onOpenSettings} className="btn-ghost p-2.5" title="Settings" aria-label="Settings">
-          <Sliders size={16} className="text-slate-400" />
+
+        <button
+          onClick={onOpenSettings}
+          className="btn-secondary h-8 w-8 p-0 text-zinc-400 hover:text-zinc-200"
+          title="Settings"
+          aria-label="Settings"
+        >
+          <Settings size={13} />
         </button>
       </div>
+
     </div>
   </header>
 );

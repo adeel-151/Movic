@@ -11,7 +11,7 @@ import { SettingsModal } from '@/components/SettingsModal';
 import {
   DownloadJob, InspectionResult, ProviderCapability, AppSettings, MediaVariant,
 } from '@/lib/types';
-import { ShieldCheck, Zap, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ShieldCheck, HardDrive, Lock, AlertCircle } from 'lucide-react';
 
 export default function Home() {
   const [inspectionResult, setInspectionResult] = useState<InspectionResult | null>(null);
@@ -35,14 +35,20 @@ export default function Home() {
   const fetchJobs = useCallback(async () => {
     try {
       const r = await fetch('/api/v1/download-jobs');
-      if (r.ok) { const d = await r.json(); setJobs(d.jobs ?? []); }
+      if (r.ok) {
+        const d = await r.json();
+        setJobs(d.jobs ?? []);
+      }
     } catch { /* ignore */ }
   }, []);
 
   const fetchCapabilities = useCallback(async () => {
     try {
       const r = await fetch('/api/v1/platforms/capabilities');
-      if (r.ok) { const d = await r.json(); setCapabilities(d.platforms ?? []); }
+      if (r.ok) {
+        const d = await r.json();
+        setCapabilities(d.platforms ?? []);
+      }
     } catch { /* ignore */ }
   }, []);
 
@@ -54,15 +60,21 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    fetchJobs(); fetchCapabilities(); fetchSettings();
+    fetchJobs();
+    fetchCapabilities();
+    fetchSettings();
   }, [fetchJobs, fetchCapabilities, fetchSettings]);
 
   /* ─── Job polling ───────────────────────────────────────── */
   useEffect(() => {
-    if (!activeJob) { if (pollingRef.current) clearInterval(pollingRef.current); return; }
+    if (!activeJob) {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      return;
+    }
     if (activeJob.status !== 'queued' && activeJob.status !== 'preparing') {
       if (pollingRef.current) clearInterval(pollingRef.current);
-      fetchJobs(); return;
+      fetchJobs();
+      return;
     }
     pollingRef.current = setInterval(async () => {
       try {
@@ -70,11 +82,16 @@ export default function Home() {
         if (r.ok) {
           const updated: DownloadJob = await r.json();
           setActiveJob(updated);
-          if (['completed', 'failed', 'cancelled'].includes(updated.status)) fetchJobs();
+          if (['completed', 'failed', 'cancelled'].includes(updated.status)) {
+            fetchJobs();
+          }
         }
       } catch { /* ignore */ }
     }, 1200);
-    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
+
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
   }, [activeJob?.id, activeJob?.status, fetchJobs]);
 
   /* ─── Inspect ───────────────────────────────────────────── */
@@ -89,10 +106,16 @@ export default function Home() {
         body: JSON.stringify({ url }),
       });
       const data = await r.json();
-      if (!r.ok) setInspectError(data);
-      else setInspectionResult(data);
+      if (!r.ok) {
+        setInspectError(data);
+      } else {
+        setInspectionResult(data);
+      }
     } catch (e) {
-      setInspectError({ code: 'NETWORK_ERROR', message: e instanceof Error ? e.message : 'Network failed' });
+      setInspectError({
+        code: 'NETWORK_ERROR',
+        message: e instanceof Error ? e.message : 'Network error occurred.',
+      });
     } finally {
       setIsInspecting(false);
     }
@@ -116,25 +139,34 @@ export default function Home() {
         }),
       });
       const data = await r.json();
-      if (!r.ok) { alert(data.message ?? 'Failed to create job'); return; }
+      if (!r.ok) {
+        alert(data.message ?? 'Failed to start download job');
+        return;
+      }
       setActiveJob({
-        id: data.jobId, status: 'queued',
+        id: data.jobId,
+        status: 'queued',
         provider: inspectionResult.provider,
         normalizedSourceFingerprint: inspectionResult.metadata.sourceUrl,
         sourceUrl: inspectionResult.metadata.sourceUrl,
         safeTitle: inspectionResult.metadata.title,
         selectedVariantId: variantId,
-        progressPercent: 0, createdAt: data.createdAt, updatedAt: data.createdAt,
+        progressPercent: 0,
+        createdAt: data.createdAt,
+        updatedAt: data.createdAt,
       });
       fetchJobs();
-    } catch (e) { alert(e instanceof Error ? e.message : 'Job error'); }
-    finally { setIsStartingJob(false); }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Job error occurred');
+    } finally {
+      setIsStartingJob(false);
+    }
   };
 
-  /* ─── Job actions ───────────────────────────────────────── */
+  /* ─── Actions ───────────────────────────────────────────── */
   const handleCancelJob = async (id: string) => {
     await fetch(`/api/v1/download-jobs/${id}`, { method: 'DELETE' });
-    setActiveJob(p => p ? { ...p, status: 'cancelled' } : null);
+    setActiveJob((p) => (p ? { ...p, status: 'cancelled' } : null));
     fetchJobs();
   };
 
@@ -146,7 +178,8 @@ export default function Home() {
 
   const handleClearAll = async () => {
     await fetch('/api/v1/download-jobs/all', { method: 'DELETE' });
-    setActiveJob(null); fetchJobs();
+    setActiveJob(null);
+    fetchJobs();
   };
 
   const handleSaveSettings = async (s: Partial<AppSettings>) => {
@@ -155,10 +188,13 @@ export default function Home() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(s),
     });
-    if (r.ok) { setSettings(await r.json()); setSettingsOpen(false); }
+    if (r.ok) {
+      setSettings(await r.json());
+      setSettingsOpen(false);
+    }
   };
 
-  const showHero = !inspectionResult && !activeJob && !isInspecting && !inspectError;
+  const showFeatures = !inspectionResult && !activeJob && !isInspecting && !inspectError;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -169,37 +205,33 @@ export default function Home() {
         historyCount={jobs.length}
       />
 
-      <main className="flex-1 max-w-4xl mx-auto w-full px-5 pb-20 pt-10">
+      <main className="flex-1 max-w-3xl mx-auto w-full px-6 pt-16 pb-20">
 
-        {/* ── Hero heading ─────────────────────────────────── */}
-        <div className="text-center mb-10 space-y-4">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-brand-500/25 bg-brand-500/10 text-brand-200 text-xs font-semibold">
-            <Zap size={13} className="text-brand-400" /> Authorized Media Retrieval
-          </div>
-          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-gradient leading-tight">
-            Download Videos<br />
-            <span className="text-gradient-brand">The Right Way</span>
+        {/* Minimal Hero */}
+        <div className="text-center mb-10 space-y-3">
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-zinc-100">
+            Media Retrieval Workspace
           </h1>
-          <p className="text-slate-400 text-base max-w-xl mx-auto leading-relaxed">
-            Inspect, verify, confirm rights, and download — all from a secure localhost-only workspace.
+          <p className="text-sm text-zinc-400 max-w-lg mx-auto leading-relaxed">
+            Inspect source streams, verify access rights, and store authorized video locally.
           </p>
         </div>
 
-        {/* ── URL Input ────────────────────────────────────── */}
+        {/* Input */}
         <UrlInputBar onInspect={handleInspect} isLoading={isInspecting} />
 
-        {/* ── Error ────────────────────────────────────────── */}
+        {/* Inspect Error */}
         {inspectError && (
-          <div className="mb-8 p-4 rounded-xl border border-red-500/25 bg-red-500/8 flex items-start gap-3 animate-slide-up">
-            <AlertCircle size={18} className="text-red-400 mt-0.5 shrink-0" />
+          <div className="mb-8 p-3.5 rounded-lg border border-red-500/20 bg-red-500/[0.05] flex items-start gap-2.5 animate-slide-up">
+            <AlertCircle size={15} className="text-red-400 mt-0.5 shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-red-300">{inspectError.code}</p>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">{inspectError.message}</p>
+              <p className="text-xs font-semibold text-red-300">{inspectError.code}</p>
+              <p className="text-xs text-zinc-400 mt-0.5 leading-relaxed">{inspectError.message}</p>
             </div>
           </div>
         )}
 
-        {/* ── Job monitor ──────────────────────────────────── */}
+        {/* Active Job */}
         {activeJob && (
           <JobMonitor
             job={activeJob}
@@ -208,7 +240,7 @@ export default function Home() {
           />
         )}
 
-        {/* ── Inspection result ────────────────────────────── */}
+        {/* Inspection Result */}
         {inspectionResult && (
           <InspectionCard
             result={inspectionResult}
@@ -217,61 +249,67 @@ export default function Home() {
           />
         )}
 
-        {/* ── Feature grid (empty state) ───────────────────── */}
-        {showHero && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+        {/* Minimal Features (Empty state) */}
+        {showFeatures && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 border-t border-white/[0.06]">
             {[
               {
-                icon: <ShieldCheck size={20} className="text-brand-400" />,
-                bg: 'bg-brand-500/10',
-                title: 'SSRF-Safe Requests',
-                desc: 'DNS resolution checks block loopback, private IPs, and cloud metadata endpoints before any request is made.',
+                icon: <ShieldCheck size={16} className="text-zinc-300" />,
+                title: 'SSRF Shield',
+                desc: 'DNS and IP checks block loopback and cloud metadata requests.',
               },
               {
-                icon: <CheckCircle2 size={20} className="text-emerald-400" />,
-                bg: 'bg-emerald-500/10',
-                title: 'Rights-First Design',
-                desc: 'Mandatory affirmative consent gate before every download. Supports creators and respects platform policies.',
+                icon: <Lock size={16} className="text-zinc-300" />,
+                title: 'Rights-First Gate',
+                desc: 'Mandatory affirmative consent required before any retrieval job.',
               },
               {
-                icon: <Zap size={20} className="text-sky-400" />,
-                bg: 'bg-sky-500/10',
-                title: 'Fast Background Worker',
-                desc: 'SQLite-persisted job queue with SHA-256 verification, progress streaming, and automatic expiry cleanup.',
+                icon: <HardDrive size={16} className="text-zinc-300" />,
+                title: 'Local Engine',
+                desc: 'Sandboxed SQLite queue with automatic retention cleanup.',
               },
             ].map((f, i) => (
-              <div key={i} className="glass-dark p-5 shadow-card space-y-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${f.bg}`}>{f.icon}</div>
-                <h3 className="font-semibold text-sm text-slate-100">{f.title}</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">{f.desc}</p>
+              <div
+                key={i}
+                className="p-4 rounded-xl border border-white/[0.05] bg-surface-900/40 space-y-1.5"
+              >
+                <div className="w-7 h-7 rounded-lg bg-white/[0.05] border border-white/[0.07] flex items-center justify-center mb-2">
+                  {f.icon}
+                </div>
+                <h3 className="font-medium text-xs text-zinc-200">{f.title}</h3>
+                <p className="text-[11px] text-zinc-500 leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
         )}
       </main>
 
-      {/* ── Footer ───────────────────────────────────────────── */}
-      <footer className="border-t border-white/6 py-5 bg-surface-950/60">
-        <div className="max-w-4xl mx-auto px-5 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
-          <span>MOVIC · SRD v1.0 · Localhost Only</span>
-          <div className="flex items-center gap-3">
-            <span>SQLite</span><span>·</span><span>SHA-256 Verified</span><span>·</span><span>Auto Expiry</span>
-          </div>
+      {/* Footer */}
+      <footer className="border-t border-white/[0.06] py-5">
+        <div className="max-w-3xl mx-auto px-6 flex items-center justify-between text-[11px] text-zinc-500">
+          <span>movic · personal single-user workspace</span>
+          <span>localhost:3000</span>
         </div>
       </footer>
 
-      {/* ── Modals ───────────────────────────────────────────── */}
+      {/* Modals */}
       <JobHistoryModal
-        isOpen={historyOpen} onClose={() => setHistoryOpen(false)}
-        jobs={jobs} onDeleteJob={handleDeleteJob} onClearAll={handleClearAll}
+        isOpen={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        jobs={jobs}
+        onDeleteJob={handleDeleteJob}
+        onClearAll={handleClearAll}
       />
       <CapabilitiesModal
-        isOpen={capsOpen} onClose={() => setCapsOpen(false)}
+        isOpen={capsOpen}
+        onClose={() => setCapsOpen(false)}
         capabilities={capabilities}
       />
       <SettingsModal
-        isOpen={settingsOpen} onClose={() => setSettingsOpen(false)}
-        settings={settings} onSaveSettings={handleSaveSettings}
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        settings={settings}
+        onSaveSettings={handleSaveSettings}
       />
     </div>
   );
